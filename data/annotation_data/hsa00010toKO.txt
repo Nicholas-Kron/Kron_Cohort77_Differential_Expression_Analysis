@@ -1,0 +1,69 @@
+hsa	GeneID	Name	ko	EC
+3101	HK3	hexokinase 3	K00844	2.7.1.1
+3098	HK1	hexokinase 1	K00844	2.7.1.1
+3099	HK2	hexokinase 2	K00844	2.7.1.1
+80201	HKDC1	hexokinase domain containing 1	K00844	2.7.1.1
+2645	GCK	glucokinase	K12407	2.7.1.2
+2821	GPI	glucose-6-phosphate isomerase	K01810	5.3.1.9
+5213	PFKM	phosphofructokinase, muscle	K00850	2.7.1.11
+5214	PFKP	phosphofructokinase, platelet	K00850	2.7.1.11
+5211	PFKL	phosphofructokinase, liver type	K00850	2.7.1.11
+2203	FBP1	fructose-bisphosphatase 1	K03841	3.1.3.11
+8789	FBP2	fructose-bisphosphatase 2	K03841	3.1.3.11
+230	ALDOC	aldolase, fructose-bisphosphate C	K01623	4.1.2.13
+226	ALDOA	aldolase, fructose-bisphosphate A	K01623	4.1.2.13
+229	ALDOB	aldolase, fructose-bisphosphate B	K01623	4.1.2.13
+7167	TPI1	triosephosphate isomerase 1	K01803	5.3.1.1
+2597	GAPDH	glyceraldehyde-3-phosphate dehydrogenase	K00134	1.2.1.12
+26330	GAPDHS	glyceraldehyde-3-phosphate dehydrogenase, spermatogenic	K10705	1.2.1.12
+5232	PGK2	phosphoglycerate kinase 2	K00927	2.7.2.3
+5230	PGK1	phosphoglycerate kinase 1	K00927	2.7.2.3
+5223	PGAM1	phosphoglycerate mutase 1	K01834	5.4.2.11
+5224	PGAM2	phosphoglycerate mutase 2	K01834	5.4.2.11
+441531	PGAM4	phosphoglycerate mutase family member 4	K01834	5.4.2.11
+2027	ENO3	enolase 3	K01689	4.2.1.11
+2026	ENO2	enolase 2	K01689	4.2.1.11
+2023	ENO1	enolase 1	K01689	4.2.1.11
+387712	ENO4	enolase 4	K01689	4.2.1.11
+5315	PKM	pyruvate kinase M1/2	K00873	2.7.1.40
+5313	PKLR	pyruvate kinase L/R	K12406	2.7.1.40
+5161	PDHA2	pyruvate dehydrogenase E1 subunit alpha 2	K00161	1.2.4.1
+5160	PDHA1	pyruvate dehydrogenase E1 subunit alpha 1	K00161	1.2.4.1
+5162	PDHB	pyruvate dehydrogenase E1 subunit beta	K00162	1.2.4.1
+1737	DLAT	dihydrolipoamide S-acetyltransferase	K00627	2.3.1.12
+1738	DLD	dihydrolipoamide dehydrogenase	K00382	1.8.1.4
+160287	LDHAL6A	lactate dehydrogenase A like 6A	K00016	1.1.1.27
+92483	LDHAL6B	lactate dehydrogenase A like 6B	K00016	1.1.1.27
+3939	LDHA	lactate dehydrogenase A	K00016	1.1.1.27
+3945	LDHB	lactate dehydrogenase B	K00016	1.1.1.27
+3948	LDHC	lactate dehydrogenase C	K00016	1.1.1.27
+124	ADH1A	alcohol dehydrogenase 1A (class I), alpha polypeptide	K13951	1.1.1.1
+125	ADH1B	alcohol dehydrogenase 1B (class I), beta polypeptide	K13951	1.1.1.1
+126	ADH1C	alcohol dehydrogenase 1C (class I), gamma polypeptide	K13951	1.1.1.1
+131	ADH7	alcohol dehydrogenase 7 (class IV), mu or sigma polypeptide	K13951	1.1.1.1
+127	ADH4	alcohol dehydrogenase 4 (class II), pi polypeptide	K13980	1.1.1.1
+128	ADH5	alcohol dehydrogenase 5 (class III), chi polypeptide	K00121	1.1.1.284 1.1.1.1
+130	ADH6	alcohol dehydrogenase 6 (class V)	K13952	1.1.1.1
+10327	AKR1A1	aldo-keto reductase family 1 member A1	K00002	1.1.1.2
+217	ALDH2	aldehyde dehydrogenase 2 family member	K00128	1.2.1.3
+224	ALDH3A2	aldehyde dehydrogenase 3 family member A2	K00128	1.2.1.3
+219	ALDH1B1	aldehyde dehydrogenase 1 family member B1	K00128	1.2.1.3
+501	ALDH7A1	aldehyde dehydrogenase 7 family member A1	K14085	1.2.1.31 1.2.1.8 1.2.1.3
+223	ALDH9A1	aldehyde dehydrogenase 9 family member A1	K00149	1.2.1.47 1.2.1.3
+221	ALDH3B1	aldehyde dehydrogenase 3 family member B1	K00129	1.2.1.5
+222	ALDH3B2	aldehyde dehydrogenase 3 family member B2	K00129	1.2.1.5
+220	ALDH1A3	aldehyde dehydrogenase 1 family member A3	K00129	1.2.1.5
+218	ALDH3A1	aldehyde dehydrogenase 3 family member A1	K00129	1.2.1.5
+84532	ACSS1	acyl-CoA synthetase short chain family member 1	K01895	6.2.1.1
+55902	ACSS2	acyl-CoA synthetase short chain family member 2	K01895	6.2.1.1
+130589	GALM	galactose mutarotase	K01785	5.1.3.3
+5236	PGM1	phosphoglucomutase 1	K01835	5.4.2.2
+55276	PGM2	phosphoglucomutase 2	K15779	5.4.2.2 5.4.2.7
+2538	G6PC	glucose-6-phosphatase catalytic subunit	K01084	3.1.3.9
+57818	G6PC2	glucose-6-phosphatase catalytic subunit 2	K01084	3.1.3.9
+92579	G6PC3	glucose-6-phosphatase catalytic subunit 3	K01084	3.1.3.9
+83440	ADPGK	ADP dependent glucokinase	K08074	2.7.1.147
+669	BPGM	bisphosphoglycerate mutase	K01837	5.4.2.4 5.4.2.11
+9562	MINPP1	multiple inositol-polyphosphate phosphatase 1	K03103	3.1.3.62 3.1.3.80
+5105	PCK1	phosphoenolpyruvate carboxykinase 1	K01596	4.1.1.32
+5106	PCK2	phosphoenolpyruvate carboxykinase 2, mitochondrial	K01596	4.1.1.32

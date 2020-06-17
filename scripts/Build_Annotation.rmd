@@ -1,0 +1,90 @@
+---
+title: "Build_Annotation"
+author: "Nick Kron"
+date: "2/24/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Load Packages
+
+```{r load packages, echo=FALSE, warning=FALSE,message=FALSE}
+
+
+#install.packages("tidyverse")
+library(tidyverse)
+
+```
+
+
+## Load data
+```{r load data, echo=FALSE, message=FALSE, warning = FALSE, include= FALSE}
+
+Ap2Uniprot <- read.delim2("../data/annotation_data/AcTx2HsUniProt.tab", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+
+
+Ap2Uniprot <- Ap2Uniprot %>% distinct(Ac_ref_Tx, .keep_all = TRUE, stringsAsFactors = FALSE)
+
+UniProt2GO <- read.delim2("../data/annotation_data/UniProt2Kegg2GO.tab", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+
+Prot2Kegg <- read.delim2("../data/annotation_data/AplCal3.0_prot2ko.tab", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+
+#Tx2Prot <- read.delim2("../data/annotation_data/AplCal3.0_tx2prot.tab", sep = "\t", header = TRUE)
+
+Parent2prot2product<- read.delim2("../data/annotation_data/Parent2Prot2Product.txt", sep = ";", header = FALSE, stringsAsFactors = FALSE)
+colnames(Parent2prot2product) <- c("Parent","product","prot")
+
+Parent2Tx<- read.delim2("../data/annotation_data/Parent2Tx.txt", sep = ";", header = FALSE, stringsAsFactors = FALSE)
+colnames(Parent2Tx) <- c("Parent","tx")
+
+```
+
+##build tx to prot mapping file
+
+```{r build tx2prot, echo=FALSE, message=FALSE, warning = FALSE, include= FALSE}
+
+
+tx2prot2product <- inner_join(Parent2Tx, Parent2prot2product) %>% select(tx, prot, product)
+tx2prot2product$product <- stringr::str_replace_all(tx2prot2product$product,"%2C",",")
+
+```
+
+
+
+## Build GO database for TOPGO based on A. californica to UniProt to GO
+```{r build GO annot, echo=FALSE, message=FALSE, warning = FALSE, include= FALSE}
+ApTxAnnotated <- inner_join(Ap2Uniprot, UniProt2GO)
+ApTxAnnotated <- ApTxAnnotated[,c(3,4,5,1,2,6:length(colnames(ApTxAnnotated)))]
+
+#Make Tx2Go list for topGO
+AcTx2GO <- (regmatches(ApTxAnnotated$GO_IDs,gregexpr("(GO:[0-9]{7,})",ApTxAnnotated$GO_IDs)))
+names(AcTx2GO) <- ApTxAnnotated$Ac_ref_Tx
+```
+
+
+## Build Kegg annotation for clusterProfiler
+```{r build KEGG annot, echo=FALSE, message=FALSE, warning = FALSE, include= FALSE}
+
+Tx2Prot2Kegg <- inner_join(Prot2Kegg, tx2prot2product)
+
+```
+
+## Build Compound annotation file
+```{r build annot, echo=FALSE, message=FALSE, warning = FALSE, include= FALSE}
+
+AcTxAnot <- inner_join(Tx2Prot2Kegg, ApTxAnnotated, by = c("tx"="Ac_ref_Tx")) %>% 
+  select(tx, prot, product, ko, Entry, Protein_names, Gene_names, KEGG, GeneID, GO_IDs, GO, GO_bp, GO_mf, GO_cc)
+
+```
+
+## Save annotation data
+```{r save annot, echo=FALSE, message=FALSE, warning = FALSE, include= FALSE}
+AcTxAnot <- unique(AcTxAnot)
+Tx2Prot2Kegg <- unique(Tx2Prot2Kegg)
+
+save(AcTxAnot, Tx2Prot2Kegg, AcTx2GO, file = "../data/r_data/annot.R")
+```
+

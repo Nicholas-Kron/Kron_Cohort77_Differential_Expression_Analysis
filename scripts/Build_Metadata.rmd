@@ -1,0 +1,82 @@
+---
+title: "Build_Metadata"
+author: "Nick Kron"
+date: "2/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Load Packages
+
+```{r load packages, echo=FALSE, warning=FALSE,message=FALSE}
+
+#install.packages("tidyverse")
+library(tidyverse)
+
+```
+
+## Load metadata data files
+
+```{r load files, echo=FALSE, warning=FALSE,message=FALSE}
+
+extractions <- read.csv(file = "../data/metadata/ExtractionRecord.csv", stringsAsFactors = FALSE, header = TRUE) 
+animal_meta <- read.csv(file = "../data/metadata/AnimalMetadata.csv", stringsAsFactors = FALSE, header = TRUE)
+PlateRAP <- read.csv(file = "../data/metadata/Plate2Well2Barcode_TruSeqHTRAP.csv", stringsAsFactors = FALSE, header = TRUE)
+PlateUDI <- read.csv(file = "../data/metadata/Plate2Well2Barcode_UDI24a.csv", stringsAsFactors = FALSE, header = TRUE)
+Sample2Well <- read.csv(file = "../data/metadata/Sample2Plate2Well.csv", stringsAsFactors = FALSE, header = TRUE)
+SeqID2Barcode <- read.csv(file = "../data/metadata/SeqID2barcode.csv", stringsAsFactors = FALSE, header = TRUE)
+
+```
+
+## Build metadata file
+
+```{r build metadata, echo=FALSE, warning=FALSE,message=FALSE}
+
+Sample2Animal <- extractions %>% select(Sample, Animal_ID, Tissue)
+
+Animal2Age <- animal_meta %>% select(Animal_ID, Age)
+
+Plate2Well2Barcode <- rbind(PlateRAP, PlateUDI)
+
+metadata <- SeqID2Barcode %>% 
+  left_join(Plate2Well2Barcode) %>%
+  left_join(Sample2Well)%>%
+  left_join(Sample2Animal) %>%
+  left_join(Animal2Age) %>%
+  select(Seq_ID, Sample, Animal_ID, Tissue, Age)
+
+
+write.csv(x = metadata, file = "../data/metadata/metadata.csv", quote=FALSE, row.names = FALSE)
+
+#read.csv(file = "../data/metadata/metadata.csv", stringsAsFactors = FALSE, header = TRUE)
+save(metadata, file = "../data/r_data/metadata.R")
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning = FALSE}
+
+MM <- read.csv("../data/metadata/MM_volume.csv", header = TRUE)
+batch <- read.csv("../data/metadata/potential_batches.csv", header = TRUE)
+
+metadata_full <- SeqID2Barcode %>% 
+  left_join(Plate2Well2Barcode) %>%
+  left_join(Sample2Well)%>%
+  left_join(extractions) %>%
+  left_join(animal_meta) %>%
+  left_join(MM) %>%
+  left_join(batch) %>%
+  select(-c(NanoDrop_ng_per_uL, Bioanalyzer_ng_per_uL, Qubit_ng_per_uL, Cohort, Hatched, date, Isolated, Dissected, Dissection_Time)) %>%
+  mutate(mean_TTR = (TTR1 + TTR2 + TTR3)/3,
+         mean_TWRT = (TWRT1 + TWRT2 +TWRT3)/3) %>%
+  select(-c(TWRT1,TWRT2,TWRT3, TTR1,TTR2,TTR3,TWRLI1,TWRLI2,TWRLI3,TWRLF1,TWRLF2,TWRLF3,TWRDL1,TWRDL2,TWRDL3))
+
+save(metadata_full, file = "../data/r_data/metadata_full.R")
+
+
+
+
+```
+

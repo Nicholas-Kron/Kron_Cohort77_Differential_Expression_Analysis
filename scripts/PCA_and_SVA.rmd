@@ -1,0 +1,409 @@
+---
+title: "PCA_and_SVA"
+author: "Nick Kron"
+date: "2/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##Load Packages
+
+```{r load packages, echo=FALSE, warning=FALSE,message=FALSE}
+
+library(ComplexHeatmap)
+library(sva)
+
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# 
+# BiocManager::install("tximport")
+library(tximport)
+
+#install.packages("tidyverse")
+library(tidyverse)
+
+```
+
+## Load data files
+
+```{r load files, echo=FALSE, warning=FALSE,message=FALSE}
+
+metadata <- read.csv(file = "../data/metadata/metadata.csv", stringsAsFactors = FALSE, header = TRUE) 
+metadata <- metadata %>% dplyr::group_by(Tissue) %>% dplyr::arrange(Age, .by_group = TRUE)
+
+#set file list
+dir="../data/salmon_files"
+files<- file.path(dir,paste(metadata$Seq_ID,"quant", sep = "_"), "quant.sf")
+names(files) <- metadata$Seq_ID
+
+txi <- tximport(files, type = "salmon", txOut = TRUE)
+
+
+TPM <- txi$abundance
+TPM <- TPM[which(rowSums(TPM)>1),]
+logTPM <- log(TPM+1,2)
+
+
+```
+
+## Filter Data
+```{r filter data, echo=FALSE, message=FALSE, warning = FALSE, include= FALSE}
+
+###filter rows so that at least one time point has a lowest count greater than threshold
+BSC7 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "7")$Seq_ID)
+BSC8 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "8")$Seq_ID)
+BSC9 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "9")$Seq_ID)
+BSC10 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "10")$Seq_ID)
+BSC11 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "11")$Seq_ID)
+BSC12 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "12")$Seq_ID)
+
+PVC6 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "6")$Seq_ID)
+PVC7 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "7")$Seq_ID)
+PVC8 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "8")$Seq_ID)
+PVC9 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "9")$Seq_ID)
+PVC10 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "10")$Seq_ID)
+PVC11 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "11")$Seq_ID)
+PVC12 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "12")$Seq_ID)
+
+BSC <- c(BSC7, BSC8, BSC9, BSC10, BSC11, BSC12)
+PVC <- c(PVC6, PVC7, PVC8, PVC9, PVC10, PVC11, PVC12)
+
+###filter out genes that don't have at least one time point with all >=1 CPM expression
+mincount = 1
+TPM_filt  <- TPM[
+  which(
+  apply(TPM[,BSC7], 1, min) >= mincount |
+    apply(TPM[,BSC8], 1, min) >= mincount |
+    apply(TPM[,BSC9], 1, min) >= mincount |
+    apply(TPM[,BSC10], 1, min) >= mincount |
+    apply(TPM[,BSC11], 1, min) >= mincount |
+    apply(TPM[,BSC12], 1, min) >= mincount |
+    apply(TPM[,PVC6], 1, min) >= mincount |
+    apply(TPM[,PVC7], 1, min) >= mincount |
+    apply(TPM[,PVC8], 1, min) >= mincount |
+    apply(TPM[,PVC9], 1, min) >= mincount |
+    apply(TPM[,PVC10], 1, min) >= mincount |
+    apply(TPM[,PVC11], 1, min) >= mincount |
+    apply(TPM[,PVC12], 1, min) >= mincount 
+  ), ]
+
+length(rownames(TPM_filt))
+
+logTPM <- log(TPM_filt +1, 2)
+#head(logTPM)
+
+```
+
+##Initial PCA
+```{r intial PCA, echo=FALSE, message=FALSE, warning = FALSE, include= TRUE}
+
+ntop = 1000
+
+variance_order <- logTPM %>% apply(X = .,MARGIN = 1, var) %>% order(., decreasing = TRUE)
+keep <- variance_order[seq(1:ntop)]
+
+
+data <- logTPM[keep,]
+data <- t(data)
+data <- scale(data)
+
+PCA <- prcomp(data, scale = F)
+
+percentVar <- round(100*PCA$sdev^2/sum(PCA$sdev^2),1)
+
+dataGG = data.frame(PC1 = PCA$x[,1], PC2 = PCA$x[,2], 
+                    PC3 = PCA$x[,3], PC4 = PCA$x[,4], 
+                    Seq_ID = metadata$Seq_ID,
+                    Age = metadata$Age,
+                    Tissue = metadata$Tissue )
+```
+
+### Initial Plot
+```{r initial PCA plot, echo=FALSE, message=FALSE, warning = FALSE, include= TRUE, fig.width=7, fig.height=4}
+
+ggplot(data = dataGG, aes(x = PC1, y = PC2, color = Age, shape = Tissue, label = Seq_ID)) + 
+  theme_bw() + 
+  theme(plot.title = element_text(hjust = 0.5), 
+        legend.position="right",
+        legend.direction = "vertical",
+        legend.title = element_text(face = "bold"),
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y = element_text(face = "bold"),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+  ) +
+  labs(x = paste0("PC1 (", 
+                  round(percentVar[1],4), "%)"),
+       y = paste0("PC2 (", 
+                  round(percentVar[2],4), "%)"),
+       color = "Age (months)",
+       shape = "Tissue"
+  ) + 
+  scale_color_gradient2(low = "gold", 
+                        mid = "red", 
+                        high = "purple4", 
+                        midpoint = 9,
+                        guide = "legend") +
+  stat_ellipse(geom = "polygon", 
+               fill = "grey90", 
+               show.legend = FALSE,
+               level = 0.997) +
+  geom_vline(xintercept = 0, color = "black") + 
+  geom_hline(yintercept = 0, color ="black") +
+  geom_point(size = I(2))+
+  scale_shape_manual(values=c(15, 17))+
+  # geom_text(aes(label=ifelse(PC1>-9.8 & PC1 <0,as.character(Seq_ID),'')),
+  #           hjust=1,
+  #           vjust=-0.25, 
+  #           color = "black", 
+  #           fontface = "bold",
+  #           size =3)+ 
+  annotate(geom="text", 
+           x=c(-15,26), 
+           y=c(30,30), 
+           label=c("BSC","PVC"), 
+           col="black", 
+           size=4, 
+           fontface="bold")
+
+#ggsave(filename = "../figures/Cohort_77_PCA.svg")
+ggsave(filename = "../figures/Cohort_77_PCA.pdf", width = 7, height = 4, dpi = 600, units = "in", bg = "transparent" )
+
+
+```
+
+```{r PCA plots, echo=FALSE, message=FALSE, warning = FALSE}
+ggplot(data = dataGG, aes(x = PC1, y = PC2, color = Age, shape = Tissue, label = Seq_ID)) + geom_point() + 
+  scale_color_gradient2(low = "gold", 
+                        mid = "red", 
+                        high = "purple4", 
+                        midpoint = 9,
+                        guide = "legend")
+
+ggplot(data = dataGG, aes(x = PC2, y = PC3, color = Age, shape = Tissue, label = Seq_ID)) + geom_point() + 
+  scale_color_gradient2(low = "gold", 
+                        mid = "red", 
+                        high = "purple4", 
+                        midpoint = 9,
+                        guide = "legend")
+
+ggplot(data = dataGG, aes(x = PC3, y = PC4, color = Age, shape = Tissue, label = Seq_ID)) + geom_point() + 
+  scale_color_gradient2(low = "gold", 
+                        mid = "red", 
+                        high = "purple4", 
+                        midpoint = 9,
+                        guide = "legend")
+
+```
+
+
+
+## Surrogate Variable Analysis 
+```{r SVA, echo=FALSE, message=FALSE, warning = FALSE}
+
+
+mod <- model.matrix(~ Tissue, data=metadata)
+mod0 <- model.matrix(~ 1, data=metadata)
+svnum <- num.sv(TPM, mod, method = "be")
+svobj <- svaseq(TPM, mod, mod0, n.sv = svnum)
+#num sv is 1
+metadata$sv1 = svobj$sv[,1]
+
+
+##Build metadata R file that excludes outliers and includes SVs for DE model
+
+save(metadata, file = "../data/r_data/metadata.R") 
+
+
+
+```
+
+
+## SV Effect Source Investigation
+```{r batch variable correlation heatmap, echo=FALSE, message=FALSE, warning = FALSE, fig.width= 12, fig.height=12}
+
+load(file = "../data/r_data/metadata_full.R")
+
+metadata_full <- inner_join(metadata,metadata_full)
+
+
+test <- inner_join(dataGG , metadata_full)
+test <-  test %>% column_to_rownames("Seq_ID")
+test <- lapply(test, function(x){
+  if(typeof(x) == "character") {
+    y = as.numeric(as.factor(x))
+  }
+  else{
+    y = x
+  }
+  y
+}
+) %>% as.data.frame() %>%
+  select(PC1,PC2,PC3,PC4,sv1,Age,Tissue,Sample:mean_TWRT)
+
+
+cor_mat <- cor(test, method = "spearman")
+# cor_mat <- cor_mat[,c("sv1","sv2","Age","Tissue","Weight","Group","Animal_ID", "mean_TTR", "mean_TWRT","Sample","Dissection_Period", "Isolation_Time","Plate", "index", "index2", "Index_Plate_Well")]
+
+
+Heatmap(
+  matrix = cor_mat,
+  name = "Spearman Correlation",
+  column_title = "Investigating Potential Batch Variables with PCA and SVA",
+  column_names_side = "top",
+  column_names_rot = 45,
+  row_names_side = "left",
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    grid.text(sprintf("%.1f", cor_mat[i, j]), x, y, gp = gpar(fontsize = 10))
+  }
+)
+
+
+```
+
+
+```{r batch variable correlation heatmap reduced, echo=FALSE, message=FALSE, warning = FALSE, out.width= 70%}
+
+Heatmap(
+  matrix = cor_mat[c("PC1", "PC2", "PC3", "PC4", "sv1", "Age", "Tissue"), c("PC1", "PC2", "PC3", "PC4", "sv1", "Age", "Tissue")],
+  name = "Spearman Correlation",
+  column_title = "Correlation between Surrugate Variable/Principle Components and Phenotypes",
+  column_names_side = "top",
+  column_names_rot = 45,
+  row_names_side = "left",
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    grid.text(sprintf("%.1f", cor_mat[i, j]), x, y, gp = gpar(fontsize = 10))
+  }
+)
+```
+
+
+##Surrogate Variable Investigatory Plot
+```{r SVA plots, echo=FALSE, message=FALSE, warning = FALSE, include= TRUE, fig.width=8, fig.height=6}
+
+### PCA explanitory plots
+data.frame(percentVar = percentVar, PC = factor(x = 1:length(percentVar), levels = 1:length(percentVar)))[1:10,] %>% 
+  ggplot(data =., aes( x = PC, y = percentVar)) + 
+  geom_bar(stat = "identity", color = "black", fill = "white") +
+  labs(x = "Principal Component", y = "Percent of Variation Explained") +
+  annotate("text", x = 2, y = 25, hjust = 0,
+           label = paste0("PC1 + PC2 + PC3 = ",sum(percentVar[1:3]),"%"), ) +
+  annotate("text", x = 2, y = 22.5, hjust = 0, 
+           label = paste0(
+             "cor(PC1, Tissue) = ", 
+             round(cor(x = dataGG$PC1, y = as.numeric(dataGG$Tissue), method = "spearman"),2))
+           )+
+  annotate("text", x = 2, y = 20, hjust = 0,
+           label = paste0(
+             "cor(PC2, Age) = ",
+             round(
+               cor(x = dataGG$PC2, y = as.numeric(as.character(dataGG$Age)), method = "spearman"),
+               2)
+             ))+
+  annotate("text", x = 2, y = 17.5, hjust = 0,
+           label = paste0(
+             "cor(PC3, Surrogate Variable 1) = ",
+             round(
+               cor(x = dataGG$PC3, y = metadata$sv1, method = "spearman"),
+               2)
+           )
+  ) 
+
+```
+
+
+## Batch Correction
+```{r batch correction, echo=FALSE, message=FALSE, warning = FALSE, include= TRUE, fig.width=8, fig.height=6}
+library(limma)
+cor_TPM <- limma::removeBatchEffect(x = logTPM, covariates = metadata$sv1, design = mod)
+cor_TPM[cor_TPM < 0] = 0
+cor_TPM <- cor_TPM[rownames(TPM_filt),]
+save(cor_TPM, file = "../data/r_data/cor_TPM.R")
+
+
+```
+
+
+
+###PCA Analysis After Batch Correction
+```{r, echo=FALSE, message=FALSE, warning = FALSE, include= TRUE, fig.width=6, fig.height=4, dpi = 300}
+
+ntop = 1000
+
+variance_order <- cor_TPM %>% apply(X = .,MARGIN = 1, var) %>% order(., decreasing = TRUE)
+keep <- variance_order[seq(1:ntop)]
+
+
+data <- cor_TPM[keep,]
+data <- t(data)
+data <- scale(data)
+
+PCA <- prcomp(data, scale = F)
+
+percentVar <- round(100*PCA$sdev^2/sum(PCA$sdev^2),1)
+
+dataGG = data.frame(PC1 = PCA$x[,1], PC2 = PCA$x[,2], 
+                    PC3 = PCA$x[,3], PC4 = PCA$x[,4], 
+                    Seq_ID = metadata$Seq_ID,
+                    Age = metadata$Age,
+                    Tissue = metadata$Tissue )
+
+
+```
+
+### PCA after SV correction
+```{r corrected PCA plot, echo=FALSE, message=FALSE, warning = FALSE, include= TRUE, fig.width=8, fig.height=8}
+
+ggplot(data = dataGG, aes(x = PC1, y = PC2, color = Age, shape = Tissue, label = Seq_ID)) + 
+  theme_bw() + 
+  theme(plot.title = element_text(hjust = 0.5), 
+        legend.position="bottom", 
+        axis.title.x = element_text(face = "bold"),
+        axis.title.y = element_text(face = "bold")
+  ) +
+  labs(x = paste0("PC1, VarExp:", 
+                  round(percentVar[1],4)),
+       y = paste0("PC2, VarExp:", 
+                  round(percentVar[2],4)),
+       color = "Age (months)",
+       shape = "Tissue"
+  ) + 
+  scale_color_gradient2(low = "gold", 
+                        mid = "red", 
+                        high = "purple4", 
+                        midpoint = 9,
+                        guide = "legend") +
+  stat_ellipse(geom = "polygon", 
+               fill = "grey90", 
+               show.legend = FALSE,
+               level = 0.997) +
+  geom_vline(xintercept = 0, color = "black") + 
+  geom_hline(yintercept = 0, color ="black") +
+  geom_point(size = I(4))+
+  geom_text(aes(label=ifelse(PC1>-9.8 & PC1 <0,as.character(Seq_ID),'')),
+            hjust=1.25,
+            vjust=0.25, 
+            color = "black", 
+            fontface = "bold")+ 
+  annotate(geom="text", 
+           x=c(-17,26), 
+           y=c(30,30), 
+           label=c("BSC","PVC"), 
+           col="black", 
+           size=6, 
+           fontface="bold")
+
+
+```
+
+
+```{r remove outliers and save, echo=FALSE, message=FALSE, warning = FALSE, include= TRUE}
+metadata <- metadata %>% filter(! Seq_ID %in% c("P16","P04","P08"))
+save(metadata, file = "../data/r_data/metadata.R") 
+```
+
+

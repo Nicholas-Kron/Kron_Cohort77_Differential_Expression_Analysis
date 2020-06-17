@@ -1,0 +1,1168 @@
+---
+title: "Cohort_77_Figures"
+author: "Nick Kron"
+date: "3/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+<!-- Define functions to get maximal log 2 fold change from expression matrix -->
+```{r, echo=FALSE, message=FALSE, warning = FALSE}
+maxL2FC <- function(x, log2 = FALSE){
+  #' Get maximal log2 Fold Change of input vector
+  #'
+  #' Takes a vector and calculates the maximal log2 fold change of a sequence of values.
+  #' If only 2 values are provided, collapses to normal log2 fold change calculation.
+  #'
+  #' @param x numeric. A vector that is assumed to be in order. Must have at least 2 components.
+  #' @param log2 boolean. Specify if input values need to be log transformed, TRUE if yes. Default FALSE.
+  #' @return numeric. The maximal log2 fold change of the input vector. 
+  
+  #check user input
+  if(!is.numeric(x)){
+    stop("Input is not of type numeric")
+  }
+  if(length(x) < 2){
+    stop("Input must have at least 2 values")
+  }
+    #rising trend
+    if( match(max(x), x) > match(min(x), x) ){
+      a = min(x)
+      b = max(x)
+    }
+    #falling trend
+    else if ( match(min(x), x) > match(max(x), x) ){
+      a = max(x)
+      b = min(x)
+    }
+    #log2(value +1) transform to get log fold change
+    if(log2 == TRUE){
+      log(b+1,2) - log(a+1,2)
+    }
+    else{
+      b-a
+    }
+
+}
+
+
+getMaxL2FC <- function(em, byRow = TRUE, log2 = FALSE){
+  #' Get maximal log2 Fold Change of input expression matrix
+  #'
+  #' Takes an expression matrix and calculates the maximal log2 fold change per gene.
+  #'
+  #' @param me numeric. An expression matrix.
+  #' @param byRow boolean. If TRUE, matrixs is gene by sample, ie rows represent genes. FALSE will evaluate by column.
+  #' @param log2 boolean. Specify if input values need to be log transformed, TRUE if yes. Default FALSE.
+  #' @return numeric. A vector containing the maximal log2 fold change of an input matrix. 
+  
+  if(! (is.matrix(em) | is.data.frame(em) ) ){
+    stop("Input must be an expression matrix.")
+  }
+  em <- as.matrix(em)
+  
+  if(byRow == TRUE){
+    m = 1L
+  }
+  else{
+    m = 2L
+  }
+  apply(em, MARGIN = m, FUN = maxL2FC)
+  
+}
+
+
+```
+
+##Load Packages
+
+```{r load packages, echo=FALSE, warning=FALSE,message=FALSE}
+
+library(ComplexHeatmap)
+library(circlize)
+library(cowplot)
+library(pathview)
+library(matrixStats)
+library(agricolae)
+library(multcompView)
+library(rcompanion)
+
+#install.packages("tidyverse")
+library(tidyverse)
+
+
+
+```
+
+## Load data files
+
+```{r load files, echo=FALSE, warning=FALSE,message=FALSE}
+
+load(file = "../data/r_data/res.pvc.R") 
+load(file = "../data/r_data/res.bsc.R") 
+load(file = "../data/r_data/annot.R") 
+load(file = "../data/r_data/metadata.R")
+
+```
+
+###label clusters
+```{r}
+###BSC heatmap 
+bsc.norm <- res.bsc_patterns%>% select(genes, time, value, cluster) %>% spread(time, value) %>% column_to_rownames("genes")
+bsc.norm[bsc.norm$cluster == 1,]$cluster <- "B1"
+bsc.norm[bsc.norm$cluster == 3,]$cluster <- "B2"
+bsc.norm[bsc.norm$cluster == 2,]$cluster <- "B3"
+bsc.norm[bsc.norm$cluster == 5,]$cluster <- "B4"
+
+#B1 and B2 up, B3 B4 down
+
+###PVC heatmap 
+pvc.norm <- res.pvc_patterns %>% select(genes, time, value, cluster) %>% spread(time, value) %>% column_to_rownames("genes")
+pvc.norm[pvc.norm$cluster == 1,]$cluster <- "P1"
+pvc.norm[pvc.norm$cluster == 3,]$cluster <- "P2"
+pvc.norm[pvc.norm$cluster == 5,]$cluster <- "P3"
+pvc.norm[pvc.norm$cluster == 4,]$cluster <- "P4"
+pvc.norm[pvc.norm$cluster == 8,]$cluster <- "P5"
+
+#P1 P2 P3 Up, P4 P5 down
+
+```
+
+
+
+### heatmap for clusters 
+```{r pvc heatmap,fig.width= 3.54, fig.height=8, eval = FALSE}
+
+
+
+panel_fun = function(index) {
+  pushViewport(viewport(xscale = c(6,12), yscale = c(-2, 2)))
+  grid.rect()
+  #lines for each contributing gene
+  # for(i in seq_along(index)) {
+  #   grid.lines(x = (c(7:11,11.95)-6.5)/6,y = (as.vector(bsc.norm[index[i],2:7])+2)/4, gp = gpar(col = "lightgrey"))
+  # }
+  #95% CI lines
+  grid.polygon(x = c( (c(7:12)-6)/6, rev(c(7:12)-6)/6),
+               y = c(
+                 ( colMeans(bsc.norm[index,2:7]) + 1.96 * colSds(as.matrix(bsc.norm[index,2:7]))+2)/4,
+                 rev(( colMeans(bsc.norm[index,2:7]) - 1.96 * colSds(as.matrix(bsc.norm[index,2:7]))+2)/4)
+               ),
+               gp = gpar(fill = "lightgrey", col = 0))
+  # grid.lines(x = (c(7:11,11.95)-6.5)/6,
+  #            y = ( colMeans(bsc.norm[index,2:7]) + 1.96 * colSds(as.matrix(bsc.norm[index,2:7]))+2)/4,
+  #            gp = gpar(col = "black", lty = 2, lwd = 2))
+  # grid.lines(x = (c(7:11,11.95)-6.5)/6,
+  #            y = ( colMeans(bsc.norm[index,2:7]) - 1.96 * colSds(as.matrix(bsc.norm[index,2:7]))+2)/4,
+  #            gp = gpar(col = "black", lty = 2, lwd = 2))
+  #eigen-trajectory
+  grid.lines(x = (c(7:11,11.95)-6)/6,y = (as.vector(colMeans(bsc.norm[index,2:7]))+2)/4, gp = gpar(col = "red", lwd = 2))
+  #genes in cluster
+  grid.text(x = 0.5, y = 0.94, label = paste0("n= ",length(index)), just = "center", gp = gpar(fontsize = 10))
+  #axes
+  if(length(index) == 163) grid.xaxis(gp = gpar(fontsize = 8))
+  grid.yaxis(gp = gpar(fontsize = 8), main = FALSE)
+  popViewport()
+}
+
+
+
+anno = anno_zoom(align_to = bsc.norm$cluster, 
+                 which = "row", 
+                 panel_fun = panel_fun, 
+                 size = 0.2, 
+                 gap = unit(1,"cm"), 
+                 width = unit(4, "cm"),
+                 link_width = unit(1,"cm"))
+
+ht.bsc.clusters <- Heatmap( matrix = bsc.norm[,2:7],
+                            name = "scaled TPM",
+                            cluster_rows = FALSE,
+                            cluster_row_slices = FALSE,
+                            cluster_columns = FALSE,
+                            show_row_names = FALSE,
+                            column_names_side = "top",
+                            column_names_centered = TRUE,
+                            column_names_rot = 0,
+                            column_names_gp = gpar(fontsize = 8),
+                            #width = unit(3, "cm"),
+                            row_split = bsc.norm$cluster,
+                            row_title_rot = 0,
+                            column_title = "Age",
+         right_annotation = rowAnnotation(cluster = anno),
+         show_heatmap_legend = FALSE,
+         heatmap_legend_param = list(legend_direction = "horizontal", 
+                                                    title_position = "topcenter"),
+         heatmap_width = unit(8, "cm")
+         )
+
+# svg(filename = "../figures/bsc.clusters.svg", width = 3.625, height = 8)
+pdf(file = "../figures/bsc.clusters.pdf", width = 3.54, height = 8)
+draw(ht.bsc.clusters, heatmap_height = unit(19.5, "cm"), heatmap_legend_side = "bottom",  padding = unit(c(1, 0, 0, 0.5), "cm"))
+
+# decorate_row_title("scaled TPM",{
+#     grid.text("A", y = unit(2.2, "npc") , x = unit(0, "npc"), just = "left", gp = gpar(fontsize = 22)) })
+dev.off()
+
+
+```
+
+```{r pvc heatmap,fig.width= 3.54, fig.height=8}
+
+
+
+
+
+panel_fun = function(index) {
+    pushViewport(viewport(xscale = c(6,12), yscale = c(-2, 2)))
+    grid.rect()
+    #lines for each contributing gene
+    # for(i in seq_along(index)) {
+    #   grid.lines(x = (c(6:11,11.95)-6)/6,y = (as.vector(pvc.norm[index[i],2:8])+2)/4.2, gp = gpar(col = "lightgrey"))
+    # }
+    #95% CI lines
+    grid.polygon(x = c( (c(6:12)-6)/6, rev(c(6:11,12)-6)/6),
+                 y = c(
+                   ( colMeans(pvc.norm[index,2:8]) + 1.96 * colSds(as.matrix(pvc.norm[index,2:8]))+2)/4,
+                 rev(( colMeans(pvc.norm[index,2:8]) - 1.96 * colSds(as.matrix(pvc.norm[index,2:8]))+2)/4)
+                 ),
+                 gp = gpar(fill = "lightgrey", col = 0))
+    # grid.lines(x = (c(6:11,11.95)-6)/6,
+    #            y = ( colMeans(pvc.norm[index,2:8]) + 1.96 * colSds(as.matrix(pvc.norm[index,2:8]))+2)/4,
+    #                 gp = gpar(col = "black", lty = 1, lwd = 2))
+    # grid.lines(x = (c(6:11,11.95)-6)/6,
+    #            y = ( colMeans(pvc.norm[index,2:8]) - 1.96 * colSds(as.matrix(pvc.norm[index,2:8]))+2)/4,
+    #                 gp = gpar(col = "black", lty = 1, lwd = 2))
+    #eigen-trajectory
+    grid.lines(x = (c(6:11,11.95)-6)/6,y = (as.vector(colMeans(pvc.norm[index,2:8]))+2)/4.2, gp = gpar(col = "red", lwd = 2))
+    #genes in cluster
+    grid.text(x = 0.5, y = 0.9, label = paste0("n= ",length(index)), just = "center", gp = gpar(fontsize = 8))
+    #axes
+    if(length(index) == 76) grid.xaxis(gp = gpar(fontsize = 8))
+    grid.yaxis(gp = gpar(fontsize = 8, just = "left"), main = FALSE)
+    popViewport()
+}
+
+
+anno = anno_zoom(align_to = pvc.norm$cluster, 
+                 which = "row", panel_fun = panel_fun, 
+                 size = 0.25, 
+                 gap = unit(0.5,"cm"), 
+                 width = unit(3.5, "cm"), 
+                 link_width = unit(10,"mm"),
+                 link_gp = gpar())
+
+
+ht.pvc.clusters <- Heatmap( matrix = pvc.norm[,2:8],
+         name = "scaled_TPM",
+         cluster_rows = FALSE,
+         cluster_columns = FALSE,
+         show_row_names = FALSE,
+         column_names_side = "top",
+         column_names_centered = TRUE,
+         column_names_rot = 0,
+         column_names_gp = gpar(fontsize = 8),
+         #width = unit(3, "cm"),
+         heatmap_width = unit(8, "cm"),
+         row_split = pvc.norm$cluster,
+         row_title_rot = 0,
+         column_title = "Age",
+         show_heatmap_legend = FALSE,
+         right_annotation = rowAnnotation(cluster = anno),
+         heatmap_legend_param = list(legend_direction = "horizontal", 
+                                                    title_position = "topcenter")
+         )
+
+# svg(filename = "../figures/pvc.clusters.svg", width = 3.625, height = 8)
+pdf(file = "../figures/pvc.clusters.pdf", width = 3.54, height = 8)
+draw(ht.pvc.clusters, heatmap_height = unit(19.5, "cm"), heatmap_legend_side = "bottom",  padding = unit(c(1, 0, 0, 0.5), "cm"))
+# decorate_row_title("scaled_TPM",{
+#     grid.text("B", y = unit(1.4, "npc") , x = unit(0, "npc"), just = "left", gp = gpar(fontsize = 22)) })
+
+dev.off()
+
+```
+
+```{r legend for heatmaps}
+col_fun = colorRamp2(c(-2,0,2), c("blue", "white", "red"))
+lgd = Legend(col_fun = col_fun, title = "Scaled Expression", direction = "horizontal", title_position = "topcenter", legend_width = unit(4, "cm"))
+
+#extract legend
+#draw(ht.pvc.clusters + lgd, heatmap_height = unit(18.4, "cm"), heatmap_legend_side = "bottom",  padding = unit(c(0, 0, 0, 0.5), "cm"))
+#draw(ht.bsc.clusters, heatmap_height = unit(18.4, "cm"), heatmap_legend_side = "bottom",padding = unit(c(0, 0, 0, 0.5), "cm"))
+pdf(file = "../figures/clusters_legend.pdf", width = 2, height = 0.5)
+draw(lgd, x = unit(0.5, "npc"), y = unit(0.5, "npc"), just = "center")
+dev.off()
+```
+
+
+##Cluster Overlap
+
+```{r, fig.width= 3.55, fig.height= 6}
+
+meta <- read.csv(file = "../data/metadata/AnimalMetadata.csv", stringsAsFactors = FALSE) 
+weights <- read.csv(file = "~/Desktop/Gradschool/batch 77/Weight/Cohort77AllWeights.csv")
+
+p <- bsc.norm %>%
+  pivot_longer(., cols = -cluster, names_to = "Age", values_to = "expr") %>%
+  group_by(cluster, Age) %>%
+  summarise(mean = mean(expr), sd = sd(expr), n = n()) %>%
+  ggplot(data =., aes(x =as.numeric( Age), y = mean, group = cluster, color = cluster)) +
+  geom_line(size = 2) + 
+  scale_color_manual(values = c("firebrick", "tomato","cornflowerblue","blue4")) +
+  # geom_line( data = meta %>% 
+  #                select(Age, Weight)%>% 
+  #                mutate(sw =  scale(meta$Weight)) %>% group_by(Age) %>%
+  #                summarise(weight = mean(sw)),
+  #              mapping = aes(x = Age, y = weight),
+  #              inherit.aes = FALSE)
+    geom_line( data = weights %>% 
+                 select(Age_Months, weight)%>% 
+                 mutate(sw =  scale(weights$weight)) %>% group_by(Age_Months) %>%
+                 summarise(weight = mean(sw)) %>% dplyr::filter(.,Age_Months >= 7),
+               mapping = aes(x = Age_Months, y = weight),
+               inherit.aes = FALSE,
+               size = 2,
+               linetype = 5) +
+  labs( x = "Age(months)", y = "Scaled Expression") +
+  theme(legend.position = "right",
+        legend.direction = "vertical") +
+  scale_y_continuous(breaks=seq(-1,1,1), limits = c(-1.5,1.5))+
+  theme_bw()
+
+
+q <- pvc.norm %>%
+  pivot_longer(., cols = -cluster, names_to = "Age", values_to = "expr") %>%
+  group_by(cluster, Age) %>%
+  summarise(mean = mean(expr), sd = sd(expr), n = n()) %>%
+  ggplot(data =., aes(x =as.numeric( Age), y = mean, group = cluster, color = cluster)) +
+  geom_line(size = 2)  +
+  # geom_line( data = meta %>% 
+  #                select(Age, Weight)%>% 
+  #                mutate(sw =  scale(meta$Weight)) %>% group_by(Age) %>%
+  #                summarise(weight = mean(sw)),
+  #              mapping = aes(x = Age, y = weight),
+  #              inherit.aes = FALSE)
+      geom_line( data = weights %>% 
+                 select(Age_Months, weight)%>% 
+                 mutate(sw =  scale(weights$weight)) %>% group_by(Age_Months) %>%
+                 summarise(weight = mean(sw)) %>% dplyr::filter(.,Age_Months >= 6),
+               mapping = aes(x = Age_Months, y = weight),
+               inherit.aes = FALSE,
+               size = 2,
+               linetype = 5) +
+  labs( x = "Age(months)", y = "Scaled Expression")+
+  theme(legend.position = "right",
+        legend.direction = "vertical",
+        )+
+  scale_y_continuous(breaks=seq(-1,1,1), limits = c(-1.5,1.5))+
+  theme_bw()
+
+rbind(
+bsc.norm %>%
+  pivot_longer(., cols = -cluster, names_to = "Age", values_to = "expr") %>%
+  group_by(cluster, Age) %>%
+  summarise(mean = mean(expr), sd = sd(expr), n = n()) %>%
+   mutate(Tissue ="BSC"),
+
+pvc.norm %>%
+  pivot_longer(., cols = -cluster, names_to = "Age", values_to = "expr") %>%
+  group_by(cluster, Age) %>%
+  summarise(mean = mean(expr), sd = sd(expr), n = n()) %>%
+  mutate(Tissue ="PVC")
+) %>%
+  ggplot(data =., aes(x =as.numeric( Age), y = mean, group = cluster, color = cluster)) +
+  geom_line(size = 2)  +
+  # geom_line( data = meta %>%
+  #                select(Age, Weight)%>%
+  #                mutate(sw =  scale(meta$Weight)) %>% group_by(Age) %>%
+  #                summarise(weight = mean(sw)),
+  #              mapping = aes(x = Age, y = weight),
+  #              inherit.aes = FALSE)
+      geom_line( data = weights %>%
+                 select(Age_Months, weight)%>%
+                 mutate(sw =  scale(weights$weight)) %>% group_by(Age_Months) %>%
+                 summarise(weight = mean(sw)) %>% dplyr::filter(.,Age_Months >= 6),
+               mapping = aes(x = Age_Months, y = weight),
+               inherit.aes = FALSE,
+               size = 2,
+               linetype = 5) +
+  labs( x = "Age(months)", y = "Scaled Expression")+
+  theme(legend.position = "right",
+        legend.direction = "vertical",
+        ) +
+  facet_wrap(facets = "Tissue", nrow = 2) +
+  theme_bw()
+  
+
+
+
+cowplot::plot_grid(plotlist = list(p,q), ncol = 1)
+
+
+```
+
+##KEGG figures
+
+```{r}
+
+list.files(path = "../results/KEGG/")
+lapply( X = list.files(path = "../results/KEGG/", full.names = TRUE),
+        FUN = function(x){
+          d <- read.table(x, header = TRUE, sep = "\t")
+          p <- ggplot(data = d, aes( x = reorder(Description, (-log(p.adjust,10))), y = -log(p.adjust,10)))+ 
+            geom_bar(stat = "identity", fill = "green3") +
+            geom_hline(yintercept = -log(0.01,10)) +
+            geom_hline(yintercept = -log(0.05,10), linetype =2) +
+            labs(x = "KEGG Pathway", y = "-log10 adjusted p-value", title = str_remove_all(basename(x), ".csv")) +
+            coord_flip()
+          p
+        }
+        )
+
+inner_join(
+  read.table("../results/KEGG/BSC_UP.txt", header = TRUE, sep = "\t") %>% select(ID, Description, p.adjust),
+  read.table("../results/KEGG/PVC_UP.txt", header = TRUE, sep = "\t")%>% select(ID, Description, p.adjust),
+  by = c("ID", "Description"),
+  suffix = c(".bsc", ".pvc")
+) %>%
+  filter(p.adjust.bsc <= 0.01 & p.adjust.pvc <= 0.01) %>%
+  pivot_longer(data = ., cols = c(p.adjust.pvc, p.adjust.bsc), names_to = "ps", values_to = "p.adjust") %>%
+  mutate(Tissue = str_remove_all(ps, "p.adjust.")) %>%
+  ggplot(data = ., aes( x = reorder(Description, (-log(p.adjust,10))), y = -log(p.adjust,10), fill = Tissue))+ 
+            geom_bar(stat = "identity", position = "dodge") +
+            geom_hline(yintercept = -log(0.01,10)) +
+            geom_hline(yintercept = -log(0.05,10), linetype =2) +
+            labs(x = "KEGG Pathway", y = "-log10 adjusted p-value", title = "UP") +
+            coord_flip()
+
+inner_join(
+  read.table("../results/KEGG/BSC_DOWN.txt", header = TRUE, sep = "\t") %>% select(ID, Description, p.adjust),
+  read.table("../results/KEGG/PVC_DOWN.txt", header = TRUE, sep = "\t")%>% select(ID, Description, p.adjust),
+  by = c("ID", "Description"),
+  suffix = c(".bsc", ".pvc")
+) %>%
+  filter(p.adjust.bsc <= 0.01 & p.adjust.pvc <= 0.01) %>%
+  pivot_longer(data = ., cols = c(p.adjust.pvc, p.adjust.bsc), names_to = "ps", values_to = "p.adjust") %>%
+  mutate(Tissue = str_remove_all(ps, "p.adjust.")) %>%
+  ggplot(data = ., aes( x = reorder(Description, (-log(p.adjust,10))), y = -log(p.adjust,10), fill = Tissue))+ 
+            geom_bar(stat = "identity", position = "dodge") +
+            geom_hline(yintercept = -log(0.01,10)) +
+            geom_hline(yintercept = -log(0.05,10), linetype =2) +
+            labs(x = "KEGG Pathway", y = "-log10 adjusted p-value", title = "DOWN") +
+            coord_flip()
+
+```
+
+#KEGG pathways
+```{r KEGG scaled expression}
+
+### BSC data
+
+load(file = "../data/r_data/res.bsc.R")
+load(file = "../data/r_data/cor_TPM.bsc.R")
+
+
+### PVC Data
+
+load(file = "../data/r_data/res.pvc.R")
+load(file = "../data/r_data/cor_TPM.pvc.R")
+
+downpathways <- c("ko04022",   #PKG
+              "ko04024",   #PKA
+              "ko04720",   #LTP
+              "ko00190",   #OxPhos
+              "ko04066",   #HIF-1
+              "ko04713",   #Circadian
+              "ko04721",   #Synaptic vssicle
+              "ko04724",   #Glutematergic Synapse
+              "ko04726",   #Serotonin Synapse
+              "ko04730",   #LTD
+              "ko05010",   #Alzheimer's
+              "ko05016"   #Huntington's
+)
+
+uppathways <- c("ko04141",   #Protein Processing in the ER
+                  "ko04142",   #Lysosome
+                  "ko03008",   #Ribosome biogenesis in eukaryotes
+                  "ko03010",   #Ribosome
+                  "ko04217"   #Necroptosis
+)
+
+scaled_TPM <- bsc.norm %>% rownames_to_column("tx") %>% inner_join(Tx2Prot2Kegg) %>% dplyr::filter(ko != "")
+
+##DownPathways BSC
+setwd("../figures/KEGG/BSC")
+pv.out <- pathview(
+  gene.data = scaled_TPM %>% dplyr::filter(cluster %in% c("B3", "B4")) %>%
+    distinct_at("ko", .keep_all = TRUE) %>%
+    dplyr::select(c('7', '8', '9', '10', '11', '12', 'ko')) %>%
+    column_to_rownames('ko') ,
+  pathway.id = downpathways,
+  species = "ko",
+  out.suffix = paste0("cohort_77_BSC_down"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = T,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+##UpPathways BSC
+setwd("../figures/KEGG/BSC")
+pv.out <- pathview(
+  gene.data = scaled_TPM %>% dplyr::filter(cluster %in% c("B1", "B2")) %>%
+    distinct_at("ko", .keep_all = TRUE) %>%
+    dplyr::select(c('7', '8', '9', '10', '11', '12', 'ko')) %>%
+    column_to_rownames('ko') ,
+  pathway.id = uppathways,
+  species = "ko",
+  out.suffix = paste0("cohort_77_BSC_up"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = T,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+scaled_TPM <- pvc.norm %>% rownames_to_column("tx") %>% inner_join(Tx2Prot2Kegg) %>% dplyr::filter(ko != "")
+
+##DownPathways PVC
+setwd("../figures/KEGG/PVC")
+pv.out <- pathview(
+  gene.data = scaled_TPM %>% dplyr::filter(cluster %in% c("P4", "P5")) %>%
+    distinct_at("ko", .keep_all = TRUE) %>%
+    dplyr::select(c('6','7', '8', '9', '10', '11', '12', 'ko')) %>%
+    column_to_rownames('ko') ,
+  pathway.id = downpathways,
+  species = "ko",
+  out.suffix = paste0("cohort_77_PVC_down"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = T,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+##UpPathways PVC
+setwd("../figures/KEGG/PVC")
+pv.out <- pathview(
+  gene.data = scaled_TPM %>% dplyr::filter(cluster %in% c("P1", "P2", "P3")) %>%
+    distinct_at("ko", .keep_all = TRUE) %>%
+    dplyr::select(c('6','7', '8', '9', '10', '11', '12', 'ko')) %>%
+    column_to_rownames('ko') ,
+  pathway.id = uppathways,
+  species = "ko",
+  out.suffix = paste0("cohort_77_PVC_up"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = T,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+
+```
+
+
+```{r KEGG special Pathways BSC, error=FALSE, warning=FALSE, echo=FALSE}
+
+
+
+scaled_TPM <- bsc.norm %>% rownames_to_column("tx") %>% inner_join(Tx2Prot2Kegg) %>% dplyr::filter(ko != "")
+hsa0010toKO <- read.table(file = "../data/annotation_data/hsa00010toKO.txt", header = TRUE, stringsAsFactors = FALSE,sep = "\t")
+hsa0020toKO <- read.table(file = "../data/annotation_data/hsa00020toKO.txt", header = TRUE, stringsAsFactors = FALSE,sep = "\t")
+
+##Glycolysis
+setwd("../figures/KEGG/BSC")
+pv.out <- pathview(
+  gene.data = scaled_TPM %>% dplyr::filter(cluster %in% c("B3", "B4")) %>%
+    dplyr::filter(ko %in% hsa0010toKO$ko) %>%
+    inner_join(
+      hsa0010toKO %>% arrange(hsa) %>%  distinct_at("ko", .keep_all = TRUE)
+    ) %>%
+    distinct_at("hsa", .keep_all = TRUE) %>%
+    dplyr::select(c('7', '8', '9', '10', '11', '12', 'hsa')) %>%
+    column_to_rownames('hsa') ,
+  pathway.id = "hsa00010",
+  species = "hsa",
+  out.suffix = paste0("cohort_77_BSC_down"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = F,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+##TCA
+pv.out <- pathview(
+  gene.data = scaled_TPM %>% dplyr::filter(cluster %in% c("B3", "B4")) %>%
+    dplyr::filter(ko %in% hsa0020toKO$ko) %>%
+    inner_join(
+      hsa0020toKO %>% arrange(hsa) %>%  distinct_at("ko", .keep_all = TRUE)
+    ) %>%
+    distinct_at("hsa", .keep_all = TRUE) %>%
+    dplyr::select(c('7', '8', '9', '10', '11', '12', 'hsa')) %>%
+    column_to_rownames('hsa') ,
+  pathway.id = "hsa00020",
+  species = "hsa",
+  out.suffix = paste0("cohort_77_BSC_down"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = F,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+##Alzheimers
+pv.out <- pathview(
+  gene.data = scaled_TPM %>%
+    distinct_at("ko", .keep_all = TRUE) %>%
+    dplyr::select(c('7', '8', '9', '10', '11', '12', 'ko')) %>%
+    column_to_rownames('ko') ,
+  pathway.id = "ko05010",
+  species = "ko",
+  out.suffix = paste0("cohort_77_BSC_down"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = T,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+
+
+```
+
+
+```{r KEGG special Pathways PVC, error=FALSE, warning=FALSE, echo=FALSE}
+
+scaled_TPM <- pvc.norm %>% rownames_to_column("tx") %>% inner_join(Tx2Prot2Kegg) %>% dplyr::filter(ko != "")
+hsa0010toKO <- read.table(file = "../data/annotation_data/hsa00010toKO.txt", header = TRUE, stringsAsFactors = FALSE,sep = "\t")
+hsa0020toKO <- read.table(file = "../data/annotation_data/hsa00020toKO.txt", header = TRUE, stringsAsFactors = FALSE,sep = "\t")
+
+##Glycolysis
+setwd("../figures/KEGG/PVC")
+pv.out <- pathview(
+  gene.data = scaled_TPM %>% dplyr::filter(cluster %in% c("P3", "P4","P5")) %>%
+    dplyr::filter(ko %in% hsa0010toKO$ko) %>%
+    inner_join(
+      hsa0010toKO %>% arrange(hsa) %>%  distinct_at("ko", .keep_all = TRUE)
+    ) %>%
+    distinct_at("hsa", .keep_all = TRUE) %>%
+    dplyr::select(c('6','7', '8', '9', '10', '11', '12', 'hsa')) %>%
+    column_to_rownames('hsa') ,
+  pathway.id = "hsa00010",
+  species = "hsa",
+  out.suffix = paste0("cohort_77_PVC_down"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = F,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+##TCA
+pv.out <- pathview(
+  gene.data = scaled_TPM %>% dplyr::filter(cluster %in% c("P3", "P4","P5")) %>%
+    dplyr::filter(ko %in% hsa0020toKO$ko) %>%
+    inner_join(
+      hsa0020toKO %>% arrange(hsa) %>%  distinct_at("ko", .keep_all = TRUE)
+    ) %>%
+    distinct_at("hsa", .keep_all = TRUE) %>%
+    dplyr::select(c('6','7', '8', '9', '10', '11', '12', 'hsa')) %>%
+    column_to_rownames('hsa') ,
+  pathway.id = "hsa00020",
+  species = "hsa",
+  out.suffix = paste0("cohort_77_PVC_down"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = F,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+
+##Alzheimers
+setwd("../figures/KEGG/PVC")
+pv.out <- pathview(
+  gene.data = scaled_TPM %>%
+    distinct_at("ko", .keep_all = TRUE) %>%
+    dplyr::select(c('6','7', '8', '9', '10', '11', '12', 'ko')) %>%
+    column_to_rownames('ko') ,
+  pathway.id = "ko05010",
+  species = "ko",
+  out.suffix = paste0("cohort_77_PVC_down"),
+  keys.align = "y",
+  kegg.native = T,
+  match.data = F,
+  multi.state = T,
+  same.layer = T,
+  high = "firebrick1",
+  mid = "grey75",
+  low = "dodgerblue",
+  gene.idtype = "KEGG",
+  expand.node = TRUE,
+  map.symbol = FALSE
+)
+
+
+
+```
+
+
+## Behavior data
+```{r behavior analysis}
+
+
+animalMeta <-
+  read.csv(file = "../data/metadata/AnimalMetadata.csv",
+           header = TRUE,
+           stringsAsFactors = FALSE) %>%
+  pivot_longer(
+    cols = c(TWRT1, TWRT2, TWRT3),
+    names_to = "replicate_TWRT",
+    values_to = "TWRT"
+  ) %>%
+  pivot_longer(
+    cols = c(TTR1, TTR2, TTR3),
+    names_to = "replicate_TTR",
+    values_to = "TTR"
+  )
+
+animalMeta <- animalMeta %>% group_by(Age, Animal_ID, Weight) %>% summarise(TTR = mean(TTR), TWRT = mean(TWRT))
+
+animalMeta$Age <- factor(animalMeta$Age, levels = c(6,7,8,9,10,11,12))
+
+### parametric test
+
+aovTTR <- aov(data =  animalMeta, formula = TTR ~ Age) 
+hsdTTR <- HSD.test(aovTTR,"Age", group=TRUE, console=TRUE)
+
+aovTWRT <- aov(data = animalMeta , formula = TWRT ~ Age)
+hsdTWRT <- HSD.test(aovTWRT,"Age", group=TRUE, console=TRUE )
+
+
+plot(aovTTR,2)
+plot(aovTWRT,2)
+
+bartlett.test(animalMeta$TWRT, animalMeta$Age)
+bartlett.test(animalMeta$TTR, animalMeta$Age)
+
+###PARMETRIC TESTS NOT SUITABLE
+
+## non-parametric test
+
+### TTR
+kruskal.test(data = animalMeta ,TTR ~ Age )
+epsilonSquared(x = animalMeta$TTR,
+               g = animalMeta$Age)
+animalMeta$Age = factor(animalMeta$Age,
+                      levels=c(6,7,8,9,10,11,12))
+PT = pairwise.wilcox.test(animalMeta$TTR,
+                          animalMeta$Age,
+                          p.adjust.method="fdr")
+PT = PT$p.value
+PT1 = fullPTable(PT)
+multcompLetters(PT1,
+                compare="<",
+                threshold=0.05,  
+                Letters=letters,
+                reversed = FALSE)
+
+### TWRT
+kruskal.test(data = animalMeta ,TWRT ~ Age )
+epsilonSquared(x = animalMeta$TWRT,
+               g = animalMeta$Age)
+animalMeta$Age = factor(animalMeta$Age,
+                      levels=c(6,7,8,9,10,11,12))
+PT = pairwise.wilcox.test(animalMeta$TWRT,
+                          animalMeta$Age,
+                          p.adjust.method="fdr")
+PT = PT$p.value
+PT1 = fullPTable(PT)
+multcompLetters(PT1,
+                compare="<",
+                threshold=0.05,  
+                Letters=letters,
+                reversed = FALSE)
+
+
+
+```
+
+```{r TTR boxplot,fig.width = 3.5, fig.height = 3}
+
+pTTR <- animalMeta %>%
+  ggplot(., aes(x = Age, y = TTR, group = Age)) +
+  geom_blank() +
+  geom_rect(
+    data = data.frame(
+      x1 = c(7, 10, 12) - 6 + 0.5,
+      x2 = c(10, 12, Inf) - 6 + 0.5,
+      y1 = c(0, 15, 18),
+      y2 = c(15, 18, Inf)
+    ),
+    mapping = aes(
+      xmin = x1,
+      xmax = x2,
+      ymin = y1,
+      ymax = y2
+    ),
+    inherit.aes = FALSE,
+    fill = "grey75"
+  ) +
+geom_boxplot(color = "black") +
+    annotate(
+    geom = "text",
+    x = c(1,2,3,4,5,6,7),
+    y = ( animalMeta %>% group_by(Age) %>% summarise(min = quantile(TTR,0.75)) )$min,
+    label = c(" a"," b","bc"," b","cd"," d"," e"),
+    fontface = "bold",
+    size = 3,
+    hjust = 1.25,
+    vjust = -0.5,
+  ) +
+  annotate(
+    geom = "text",
+    x = c(8 - 5, 10.5 - 5, 12 - 5 + 0.125),
+    y = c(0, 0, 0),
+    label = c("Mature", "Aged I", "Aged II"),
+    fontface = "bold",
+    size = 3,
+    vjust = -0.6
+  ) +
+  geom_segment(
+    data = data.frame(
+      x1 = c(1.6, 4.6, 6.6),
+      x2 = c(4.4, 6.4, Inf),
+      y1 = c(0, 0, 0),
+      y2 = c(0, 0, 0)
+    ),
+    aes(
+      x = x1,
+      xend =  x2,
+      y = y1,
+      yend = y2
+    ),
+    inherit.aes = FALSE
+  ) +
+  theme_classic() +
+  labs(x = "Age (months)", y = "Time to Right (s)") +
+  theme(axis.text = element_text(face ="bold", color = "black", size = 10),
+        axis.title= element_text(face ="bold", color = "black", size = 12))
+
+
+pTTR 
+
+
+
+```
+
+```{r TWRT box plot, fig.width = 3.5, fig.height = 3}
+
+
+pTWRT <- animalMeta %>%
+  ggplot(data = ., aes(x = Age, y = TWRT, group = Age)) +
+  geom_blank() +
+  geom_rect(
+    data = data.frame(
+      x1 = c(7, 10, 12) - 6 + 0.5,
+      x2 = c(10, 12, Inf) - 6 + 0.5,
+      y1 = c(0, 13, 20),
+      y2 = c(13, 20, Inf)
+    ),
+    mapping = aes(
+      xmin = x1,
+      xmax = x2,
+      ymin = y1,
+      ymax = y2
+    ),
+    inherit.aes = FALSE,
+    fill = "grey75"
+  ) +
+  geom_boxplot(color = "black") +
+    annotate(
+    geom = "text",
+    x = c(1,2,3,4,5,6,7),
+    y = ( animalMeta %>% group_by(Age) %>% summarise(min = quantile(TWRT,0.75)) )$min,
+    label = c("  a"," ab"," bc","  d","  d","  c","abc"),
+    fontface = "bold",
+    size = 3,
+    hjust = 1.25,
+    vjust = -0.5,
+  ) +
+  annotate(
+    geom = "text",
+    x = c(8 - 5, 10.5 - 5, 12 - 5 + 0.125),
+    y = c(0, 0, 0),
+    label = c("Mature", "Aged I", "Aged II"),
+    fontface = "bold",
+    size = 3,
+    vjust = -0.6
+  ) +
+  geom_segment(
+    data = data.frame(
+      x1 = c(1.6, 4.6, 6.6),
+      x2 = c(4.4, 6.4, Inf),
+      y1 = c(0, 0, 0),
+      y2 = c(0, 0, 0)
+    ),
+    aes(
+      x = x1,
+      xend =  x2,
+      y = y1,
+      yend = y2
+    ),
+    inherit.aes = FALSE
+  ) +
+  theme_classic() +
+  labs(x = "Age (months)", y = "Time to Relax Tail (s)") +
+  theme(axis.text = element_text(face ="bold", color = "black", size = 10),
+        axis.title= element_text(face ="bold", color = "black", size = 12))
+
+
+pTWRT
+
+```
+
+```{r behavior figure, fig.width=7, fig.height=3, out.width=7, out.height=3}
+
+
+cowplot::plot_grid(plotlist = list(pTTR,pTWRT), labels = "AUTO")
+ggsave2(filename = "Cohort_77_behavior.pdf", path = "../figures/",width = unit(180,"mm"), height = unit(75,"mm"), units = "mm")
+
+
+```
+
+## Cohort life history
+
+### Weight data
+```{r weights}
+
+weights <- read.csv(file = "../data/metadata/Cohort77AllWeights.csv")
+
+weights <- weights %>% filter(Isolated == 0)
+
+pWeights <- weights %>%
+  ggplot(data = ., aes(x = Age_Days, y = weight, group = Age_Days)) +
+  geom_blank() +
+  geom_rect(
+    data = data.frame(
+      x1 = seq(120, 360, 60),
+      x2 = seq(150, 390, 60),
+      y1 = rep(-Inf, length(seq(120, 360, 60))),
+      y2 = rep(Inf, length(seq(150, 390, 60)))
+    ),
+    aes(
+      xmin = x1,
+      xmax = x2,
+      ymin = y1,
+      ymax = y2
+    ),
+    inherit.aes = FALSE,
+    fill = "grey75"
+  ) +
+  geom_boxplot(color = "black", width = 10) +
+  geom_smooth(data = weights, 
+              aes(x = Age_Days, 
+                  y = weight),
+              method = "auto",
+              inherit.aes = FALSE,
+              se = FALSE,
+              color = "black") +
+    annotate(
+    geom = "text",
+    x = c(seq(4.5, 12.5, 1)*30),
+    y = c(rep(1500, 9)),
+    label = (weights %>% group_by(Age_Days) %>% summarise(n = n()))$n ,
+    fontface = "bold",
+    size = 2.5,
+    vjust = 0.5) +
+  #geom_point()+
+  theme_classic() +
+  labs(x = "Age (Days)", y = "Weight (g)") +
+  theme(
+    axis.text = element_text(face = "bold", color = "black", size = 8),
+    axis.title = element_text(face = "bold", color = "black", size = 12)
+  ) +
+  scale_x_continuous(
+    breaks = c(seq(0, 460, 30)),
+    sec.axis = sec_axis(
+      ~ . / 30,
+      name = "Age (Months)",
+      breaks = c(seq(3.5, 13.5, 1)),
+      labels = as.character(c(seq(3, 13, 1)))
+    )
+  )
+
+```
+
+### Mortality data
+
+```{r mortality integrate over months}
+
+mortality <- read.csv(file = "../data/metadata/Cohort_77_Mortality.csv", header = TRUE, stringsAsFactors = FALSE)
+
+mortality <-mortality %>% rownames_to_column("num") %>% 
+  mutate(pop_before = 54-as.numeric(num)) %>% 
+  mutate(pop_after = pop_before-1, deaths = 1) %>%
+  group_by(age.in.days) %>%
+  summarise(pop_before = max(pop_before), pop_after = min(pop_after), deaths = sum(deaths)) %>%
+  rbind(data.frame(age.in.days = 138, pop_before = 53, pop_after = 53, deaths=0)) %>%
+  full_join(data.frame(age.in.days = 138:422)) %>%
+  arrange(age.in.days)%>%
+  tidyr::fill(c(pop_before,pop_after), .direction = "down") %>%
+  replace_na(list(deaths = 0)) %>%
+  mutate(survivorship = pop_after/53)
+
+
+gompertz <- mortality %>%
+  mutate(month = ceiling(age.in.days / 30)) %>%
+  group_by(month) %>%
+  summarise(pop_before = max(pop_before), pop_after = min(pop_after), deaths = sum(deaths), delta.t = max(age.in.days)-min(age.in.days)+15) %>%
+  mutate(s = pop_after/53, dsdt = ((pop_after/53)-(pop_before/53))/30) %>%
+  mutate(m = -(dsdt/s)) %>%
+  mutate(days = month*30) %>%
+  filter(month >= 10 & month <=14)
+
+gompertz %>% ggplot(data =., aes(y=m, x =month)) + geom_point()
+gompertz %>% ggplot(data =., aes(y=log(m), x =month)) + geom_point()
+
+lm( log(gompertz$m)~ (gompertz$days))
+
+A = exp(-21.02735)
+G = 0.04736
+
+pMortality <- mortality %>%
+  mutate(month = ceiling(age.in.days / 30)) %>%
+  group_by(month) %>%
+  summarise(pop = max(pop_before), mort = sum(deaths)) %>%
+  mutate(rate = mort / 53) %>%
+  mutate(days = (month * 30) - 15) %>%
+  ggplot(dat = ., aes(x = days, y = rate)) +
+  geom_blank() +
+  geom_rect(
+    data = data.frame(
+      x1 = seq(120, 420, 60),
+      x2 = seq(150, 450, 60),
+      y1 = rep(-Inf, length(seq(120, 420, 60))),
+      y2 = rep(Inf, length(seq(150, 450, 60)))
+    ),
+    aes(
+      xmin = x1,
+      xmax = x2,
+      ymin = y1,
+      ymax = y2
+    ),
+    inherit.aes = FALSE,
+    fill = "grey75"
+  ) +
+  #geom_bar(stat = "identity", fill = "darkred", width = 10) +
+  geom_point(
+    inherit.aes = FALSE,
+    data = mortality ,
+    aes(x = age.in.days, y = pop_after/53),
+    shape= 5,
+    size = 0.5
+  ) +
+  geom_line(inherit.aes = FALSE,
+            data = mortality,
+            aes(x = age.in.days,
+                y = exp( (A / G) * (1 - exp( G * (age.in.days ) ) ) )
+            ),
+            size = 1
+  ) +
+    annotate(
+    geom = "text",
+    x = 180,
+    y = 1,
+    label = "n = 53" ,
+    fontface = "bold",
+    size = 3,
+    vjust = 1.5) +
+  theme_classic() +
+  labs(x = "Age (Days)", y = "Proportion Surviving") +
+  theme(
+    axis.text = element_text(face = "bold", color = "black", size = 8),
+    axis.title = element_text(face = "bold", color = "black", size = 12)
+  ) +
+  scale_x_continuous(
+    breaks = c(seq(0, 460, 30)),
+    sec.axis = sec_axis(
+      ~ . / 30,
+      name = "Age (Months)",
+      breaks = c(seq(4.5, 14.5, 1)),
+      labels = as.character(c(seq(4, 14, 1)))
+    )
+  )
+
+```
+
+### cohort life history plot
+```{r cohort data figure, fig.width=7, fig.height=3, out.width=7, out.height=3}
+
+cowplot::plot_grid(plotlist = list(pWeights,pMortality), labels = "AUTO")
+ggsave2(filename = "Cohort_77_life_history.pdf", path = "../figures/",width = unit(180,"mm"), height = unit(75,"mm"), unit = "mm")
+
+
+```
+

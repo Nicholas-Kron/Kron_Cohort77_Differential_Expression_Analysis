@@ -1,0 +1,31 @@
+hsa	GeneID	Name	ko	EC
+1431	CS	citrate synthase	K01647	2.3.3.1
+47	ACLY	ATP citrate lyase	K01648	2.3.3.8
+50	ACO2	aconitase 2	K01681	4.2.1.3
+48	ACO1	aconitase 1	K01681	4.2.1.3
+3417	IDH1	isocitrate dehydrogenase (NADP(+)) 1	K00031	1.1.1.42
+3418	IDH2	isocitrate dehydrogenase (NADP(+)) 2	K00031	1.1.1.42
+3420	IDH3B	isocitrate dehydrogenase (NAD(+)) 3 non-catalytic subunit beta	K00030	1.1.1.41
+3421	IDH3G	isocitrate dehydrogenase (NAD(+)) 3 non-catalytic subunit gamma	K00030	1.1.1.41
+3419	IDH3A	isocitrate dehydrogenase (NAD(+)) 3 catalytic subunit alpha	K00030	1.1.1.41
+55753	OGDHL	oxoglutarate dehydrogenase like	K00164	1.2.4.2
+4967	OGDH	oxoglutarate dehydrogenase	K00164	1.2.4.2
+1743	DLST	dihydrolipoamide S-succinyltransferase	K00658	2.3.1.61
+1738	DLD	dihydrolipoamide dehydrogenase	K00382	1.8.1.4
+8802	SUCLG1	succinate-CoA ligase GDP/ADP-forming subunit alpha	K01899	6.2.1.4 6.2.1.5
+8801	SUCLG2	succinate-CoA ligase GDP-forming subunit beta	K01900	6.2.1.4 6.2.1.5
+8803	SUCLA2	succinate-CoA ligase ADP-forming subunit beta	K01900	6.2.1.4 6.2.1.5
+6389	SDHA	succinate dehydrogenase complex flavoprotein subunit A	K00234	1.3.5.1
+6390	SDHB	succinate dehydrogenase complex iron sulfur subunit B	K00235	1.3.5.1
+6391	SDHC	succinate dehydrogenase complex subunit C	K00236	NA
+6392	SDHD	succinate dehydrogenase complex subunit D	K00237	NA
+2271	FH	fumarate hydratase	K01679	4.2.1.2
+4190	MDH1	malate dehydrogenase 1	K00025	1.1.1.37
+4191	MDH2	malate dehydrogenase 2	K00026	1.1.1.37
+5091	PC	pyruvate carboxylase	K01958	6.4.1.1
+5105	PCK1	phosphoenolpyruvate carboxykinase 1	K01596	4.1.1.32
+5106	PCK2	phosphoenolpyruvate carboxykinase 2, mitochondrial	K01596	4.1.1.32
+5161	PDHA2	pyruvate dehydrogenase E1 subunit alpha 2	K00161	1.2.4.1
+5160	PDHA1	pyruvate dehydrogenase E1 subunit alpha 1	K00161	1.2.4.1
+5162	PDHB	pyruvate dehydrogenase E1 subunit beta	K00162	1.2.4.1
+1737	DLAT	dihydrolipoamide S-acetyltransferase	K00627	2.3.1.12

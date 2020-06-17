@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+/data/r_data/*
+/figures/*
+/data/salmon_files/*
+/results/*
+/data/annotation_data/ref_AplCal3.0_top_level.gff3

@@ -1,0 +1,144 @@
+---
+title: "Differential_Expression_Analysis_BSC"
+author: "Nick Kron"
+date: "2/21/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##Load Packages
+
+```{r load packages, echo=FALSE, warning=FALSE,message=FALSE}
+
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# 
+# BiocManager::install("tximport")
+library(tximport)
+
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# 
+# BiocManager::install("DESeq2")
+
+library(DESeq2)
+
+#install.packages("tidyverse")
+library(tidyverse)
+
+```
+
+<!-- Define function to exract tx names -->
+```{r, echo=FALSE, message=FALSE, warning = FALSE}
+
+extract_tx <- function(x){
+  if(typeof(x) == "character"){
+  stringr::str_extract(x, '[NX][MR]_[0-9]+.[0-9]')
+  }
+  else{
+    print('ERROR: input is not a vector of type character')
+  }
+}
+
+```
+
+## Load data files
+
+```{r load files, echo=FALSE, warning=FALSE,message=FALSE}
+
+load(file = "../data/r_data/metadata.R") 
+metadata <- metadata %>% dplyr::group_by(Tissue) %>% dplyr::arrange(Age, .by_group = TRUE)
+
+#set file list
+dir="../data/salmon_files"
+files<- file.path(dir,paste(metadata$Seq_ID,"quant", sep = "_"), "quant.sf")
+names(files) <- metadata$Seq_ID
+
+## load filtered and corrected TPM to filter dds
+load(file = "../data/r_data/cor_TPM.R")
+
+```
+
+
+## Set up data for Tissue Specific Analysis
+
+```{r set up data for BSC, echo=FALSE, message=FALSE, warning = FALSE}
+BSC7 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "7")$Seq_ID)
+BSC8 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "8")$Seq_ID)
+BSC9 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "9")$Seq_ID)
+BSC10 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "10")$Seq_ID)
+BSC11 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "11")$Seq_ID)
+BSC12 <- as.vector(filter(metadata, Tissue == "BSC" & Age == "12")$Seq_ID)
+
+PVC6 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "6")$Seq_ID)
+PVC7 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "7")$Seq_ID)
+PVC8 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "8")$Seq_ID)
+PVC9 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "9")$Seq_ID)
+PVC10 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "10")$Seq_ID)
+PVC11 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "11")$Seq_ID)
+PVC12 <- as.vector(filter(metadata, Tissue == "PVC" & Age == "12")$Seq_ID)
+
+BSC <- c(BSC7, BSC8, BSC9, BSC10, BSC11, BSC12)
+PVC <- c(PVC6, PVC7, PVC8, PVC9, PVC10, PVC11, PVC12)
+
+
+#BSC
+metadata <- metadata[which(metadata$Seq_ID %in% PVC),]
+metadata <- droplevels(metadata)
+files <- files[PVC]
+
+cor_TPM.pvc <- cor_TPM[,PVC] %>% as.data.frame() %>% rownames_to_column("ref") %>% mutate(tx= extract_tx(ref)) %>% select(-ref) %>% column_to_rownames("tx")
+save(cor_TPM.pvc, file = "../data/r_data/cor_TPM.pvc.R")
+
+```
+
+
+## DE analysis
+
+```{r DE analysis, analysis, echo=FALSE, message=FALSE, warning = FALSE}
+
+txi<- tximport(files, type = "salmon", txOut = TRUE)
+metadata$Age <- factor(metadata$Age, levels =c(6,7,8,9,10,11,12))
+
+
+dds <- DESeqDataSetFromTximport(txi, metadata, ~sv1 + as.factor(Age))
+dds <- dds[rownames(cor_TPM),]
+rownames(dds) <- extract_tx(rownames(dds))
+dds <- DESeq(dds, reduced = ~sv1, test = "LRT")
+res <- results(dds, alpha = 0.01)
+res.pvc <- as.data.frame(res)
+
+
+```
+
+## Transcriptional Profile clustering
+
+```{r cluster transcriptional profiles, analysis, echo=FALSE, message=FALSE, warning = FALSE}
+
+library(DEGreport)
+
+rownames(cor_TPM) <- extract_tx(rownames(cor_TPM))
+
+res_patterns <- DEGreport::degPatterns(
+  ma = cor_TPM[rownames(res[which(res$padj < 0.01),]),metadata$Seq_ID],
+  metadata = data.frame(time = metadata$Age, row.names = metadata$Seq_ID, Tissue = metadata$Tissue),
+  reduce = TRUE,
+  minc = 50,
+  col = "Tissue",
+  groupDifference = 0.58
+)
+
+```
+
+```{r save results , analysis, echo=FALSE, message=FALSE, warning = FALSE}
+
+res.pvc_clusters <- res_patterns$df
+res.pvc_patterns <- res_patterns$normalized
+save(res.pvc_clusters,res.pvc_patterns, res.pvc, file ="../data/r_data/res.pvc.R")
+
+```
+
