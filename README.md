@@ -1,6 +1,6 @@
 # Kron Cohort 77 Differential Expression Analysis
 
-This repository contains all code used for the preparation and analysis of RNA sequencing data from an RNA sequencing time series experiment on *Aplysia californica* sensory neurons in the lab of Dr. Lynne Fieber at the University of Miami Rosenstiel School of Marine and Atmospheric Science.  This repository consists mainly of the R project hierarchy and associated files and scripts used for during this analysis, with inclusion of BASH scripts used raw read processing, cleaning, and mapping-quantification steps on a HPC cluster.
+This repository contains all code used for the preparation and analysis of RNA sequencing data from an RNA sequencing time series experiment on *Aplysia californica* sensory neurons in the lab of Dr. Lynne Fieber at the University of Miami Rosenstiel School of Marine and Atmospheric Science.  This repository consists mainly of the R project hierarchy and associated files and scripts used  during this analysis, with inclusion of BASH scripts used for raw read processing, cleaning, and mapping-quantification steps on a HPC cluster.
 
 
 The associated publication can be found here:  
